@@ -1,0 +1,6 @@
+{
+  "name": "A Birthday Journey for Disha",
+  "description": "An ultra-premium cinematic birthday website for Disha. A magical digital gift featuring elegant animations, memory timelines, particle systems, interactive cake cutting, and stunning visual storytelling.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
