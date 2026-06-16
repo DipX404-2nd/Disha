@@ -6,9 +6,14 @@ import { playDreamyChord, playChimeTrail } from '../utils/audio';
 interface Scene4MessageProps {
   onNext: () => void;
   onPrev: () => void;
+  msgLines?: {
+    line1: string;
+    line2: string;
+    line3: string;
+  };
 }
 
-export const Scene4Message: React.FC<Scene4MessageProps> = ({ onNext, onPrev }) => {
+export const Scene4Message: React.FC<Scene4MessageProps> = ({ onNext, onPrev, msgLines }) => {
   const [opened, setOpened] = useState(false);
 
   useEffect(() => {
@@ -20,6 +25,10 @@ export const Scene4Message: React.FC<Scene4MessageProps> = ({ onNext, onPrev }) 
     setOpened(true);
     playChimeTrail();
   };
+
+  const line1Text = msgLines?.line1 || "May this year bring endless happiness, beautiful memories, success, laughter, and everything that makes you smile.";
+  const line2Text = msgLines?.line2 || "You deserve all the joy in the world.";
+  const line3Text = msgLines?.line3 || "Happy Birthday, Disha";
 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center p-6 text-center select-none overflow-hidden z-20 w-full pt-16">
@@ -99,7 +108,7 @@ export const Scene4Message: React.FC<Scene4MessageProps> = ({ onNext, onPrev }) 
                   transition={{ delay: 0.3, duration: 2.0 }}
                   className="font-hand text-3xl sm:text-4xl text-[#f3cbd1] leading-relaxed select-text tracking-wide px-2 rose-glow"
                 >
-                  "May this year bring endless happiness, beautiful memories, success, laughter, and everything that makes you smile.
+                  "{line1Text}"
                 </motion.p>
                 <motion.p
                   initial={{ opacity: 0 }}
@@ -107,7 +116,7 @@ export const Scene4Message: React.FC<Scene4MessageProps> = ({ onNext, onPrev }) 
                   transition={{ delay: 2.5, duration: 2.0 }}
                   className="font-hand text-2xl sm:text-3xl text-gray-300 mt-5 leading-normal select-text tracking-wide"
                 >
-                  You deserve all the joy in the world.
+                  {line2Text}
                 </motion.p>
                 <motion.p
                   initial={{ opacity: 0, scale: 0.9 }}
@@ -115,7 +124,7 @@ export const Scene4Message: React.FC<Scene4MessageProps> = ({ onNext, onPrev }) 
                   transition={{ delay: 4.5, duration: 2.5 }}
                   className="font-hand text-4xl sm:text-5xl text-[#ffd700] mt-7 block select-text font-bold gold-glow relative inline-flex items-center gap-2"
                 >
-                  Happy Birthday, Disha <Heart className="w-7 h-7 inline text-[#b76e79] fill-[#b76e79] animate-pulse" />
+                  {line3Text} <Heart className="w-7 h-7 inline text-[#b76e79] fill-[#b76e79] animate-pulse" />
                 </motion.p>
               </div>
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { getPhotos, clearPhotos, SavedPhoto } from './utils/db';
+import { getPhotos, clearPhotos, SavedPhoto, savePhoto } from './utils/db';
 import { ParticleCanvas, ParticleCanvasRef } from './components/ParticleCanvas';
 import { MemoryUploader } from './components/MemoryUploader';
 import { Scene1Opening } from './components/Scene1Opening';
@@ -10,35 +10,87 @@ import { Scene4Message } from './components/Scene4Message';
 import { Scene5Cake } from './components/Scene5Cake';
 import { Scene6Sky } from './components/Scene6Sky';
 import { Scene7Ending } from './components/Scene7Ending';
-import { Sparkles, Music, Music2 } from 'lucide-react';
+import { AdminDashboard } from './components/AdminDashboard';
+import { Sparkles, Music, Music2, Lock } from 'lucide-react';
 import { playDreamyChord } from './utils/audio';
+import { fetchCommittedConfig, getLocalLockState, getLocalApprovedIds, getUserInputAccessEnabled, getBirthdayMessageLines } from './utils/admin';
 
 type ActiveScene = 'uploader' | 'opening' | 'tunnel' | 'gallery' | 'message' | 'cake' | 'sky' | 'ending';
 
 export default function App() {
   const [photos, setPhotos] = useState<SavedPhoto[]>([]);
   const [scene, setScene] = useState<ActiveScene>('uploader');
+  const [isUserInputEnabled, setIsUserInputEnabled] = useState<boolean>(true);
+  const [msgLines, setMsgLines] = useState(() => getBirthdayMessageLines());
   const [isLoading, setIsLoading] = useState(true);
+  const [showAdmin, setShowAdmin] = useState(window.location.hash === '#admin');
   const particleCanvasRef = useRef<ParticleCanvasRef>(null);
 
-  // Load photos from IndexedDB on startup
+  // Monitor window hash changes for admin routing
   useEffect(() => {
-    async function loadStoredMemories() {
-      try {
-        const storedPhotos = await getPhotos();
-        if (storedPhotos && storedPhotos.length > 0) {
+    const handleHashChange = () => {
+      setShowAdmin(window.location.hash === '#admin');
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  const loadStoredMemories = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Step A: Check if a dedicated config is committed via JSON in the deployment
+      const committedConfig = await fetchCommittedConfig();
+      if (committedConfig && committedConfig.isLocked) {
+        // Core block: If marked locked globally, immediately skip uploader with configuration photos!
+        setPhotos(committedConfig.photos);
+        setIsUserInputEnabled(committedConfig.userInputAccessEnabled !== false);
+        if (committedConfig.msgLine1) {
+          setMsgLines({
+            line1: committedConfig.msgLine1,
+            line2: committedConfig.msgLine2 || '',
+            line3: committedConfig.msgLine3 || ''
+          });
+        }
+        setScene('opening');
+        return;
+      }
+
+      // Step B: If not blocked globally by config, fetch standard DB & check local custom lock
+      const storedPhotos = await getPhotos();
+      const isLocalLocked = getLocalLockState();
+      const approvedIds = getLocalApprovedIds();
+      setIsUserInputEnabled(getUserInputAccessEnabled());
+
+      if (isLocalLocked) {
+        // Filter out based on moderated approved photos
+        const approvedPhotos = storedPhotos.filter(p => approvedIds.includes(p.id));
+        if (approvedPhotos.length > 0) {
+          setPhotos(approvedPhotos);
+        } else {
           setPhotos(storedPhotos);
+        }
+        setScene('opening');
+      } else {
+        // Standard unlocked state: Check if photos exist locally
+        if (storedPhotos && storedPhotos.length > 0) {
+          const approvedPhotos = storedPhotos.filter(p => approvedIds.includes(p.id));
+          setPhotos(approvedPhotos.length > 0 ? approvedPhotos : storedPhotos);
           setScene('opening');
         } else {
           setScene('uploader');
         }
-      } catch (e) {
-        console.error('Failed to parse IndexedDB:', e);
-        setScene('uploader');
-      } finally {
-        setIsLoading(false);
       }
+    } catch (e) {
+      console.error('Failed to parse memories boot phase:', e);
+      setScene('uploader');
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  // Load photos from config or IndexedDB on startup
+  useEffect(() => {
     loadStoredMemories();
   }, []);
 
@@ -54,6 +106,29 @@ export default function App() {
     setPhotos([]);
     setScene('uploader');
     setIsLoading(false);
+  };
+
+  const handleRefreshData = async () => {
+    // Re-synchronize App state instantly with new local admin controls
+    const storedPhotos = await getPhotos();
+    const isLocalLocked = getLocalLockState();
+    const approvedIds = getLocalApprovedIds();
+    setIsUserInputEnabled(getUserInputAccessEnabled());
+    setMsgLines(getBirthdayMessageLines());
+    
+    // Filter photos based on approval
+    const approvedPhotos = storedPhotos.filter(p => approvedIds.includes(p.id));
+    setPhotos(approvedPhotos.length > 0 ? approvedPhotos : storedPhotos);
+
+    if (isLocalLocked) {
+      if (scene === 'uploader') {
+        setScene('opening');
+      }
+    } else {
+      if (storedPhotos.length === 0) {
+        setScene('uploader');
+      }
+    }
   };
 
   // Nav actions
@@ -153,7 +228,7 @@ export default function App() {
             )}
 
             {scene === 'message' && (
-              <Scene4Message onNext={nextScene} onPrev={prevScene} />
+              <Scene4Message msgLines={msgLines} onNext={nextScene} onPrev={prevScene} />
             )}
 
             {scene === 'cake' && (
@@ -168,6 +243,7 @@ export default function App() {
             {scene === 'sky' && (
               <Scene6Sky
                 photos={photos}
+                isUserInputEnabled={isUserInputEnabled}
                 onNext={nextScene}
                 onPrev={prevScene}
                 onLanternTrigger={(x) => particleCanvasRef.current?.triggerLantern(x)}
@@ -176,6 +252,7 @@ export default function App() {
 
             {scene === 'ending' && (
               <Scene7Ending
+                isUserInputEnabled={isUserInputEnabled}
                 onNext={nextScene}
                 onPrev={prevScene}
                 onFireworkTrigger={(x, y) => particleCanvasRef.current?.triggerFirework(x, y)}
@@ -186,6 +263,34 @@ export default function App() {
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {/* Tiny subtle Admin Gateway Key in the bottom left corner */}
+      <button
+        id="subtle-admin-gate-trigger"
+        onClick={() => {
+          setShowAdmin(true);
+          window.location.hash = '#admin';
+        }}
+        title="Admin Control Panel"
+        className="fixed bottom-4 left-4 z-40 w-6 h-6 rounded-full flex items-center justify-center text-gray-700/30 hover:text-[#b76e79] hover:bg-white/5 border border-transparent hover:border-white/5 transition duration-500 cursor-pointer"
+      >
+        <Lock className="w-3 h-3" />
+      </button>
+
+      {/* Admin Dashboard Control Overlay */}
+      <AnimatePresence>
+        {showAdmin && (
+          <AdminDashboard 
+            onClose={() => {
+              setShowAdmin(false);
+              if (window.location.hash === '#admin') {
+                window.history.pushState("", document.title, window.location.pathname + window.location.search);
+              }
+            }} 
+            onRefreshData={handleRefreshData}
+          />
+        )}
+      </AnimatePresence>
 
     </div>
   );

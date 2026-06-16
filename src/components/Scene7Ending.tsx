@@ -16,6 +16,7 @@ interface Scene7EndingProps {
   onFireworkTrigger: (x?: number, y?: number) => void;
   onBalloonTrigger: () => void;
   onResetPhotos: () => void; // allow re-uploading
+  isUserInputEnabled?: boolean;
 }
 
 export const Scene7Ending: React.FC<Scene7EndingProps> = ({
@@ -23,7 +24,8 @@ export const Scene7Ending: React.FC<Scene7EndingProps> = ({
   onPrev,
   onFireworkTrigger,
   onBalloonTrigger,
-  onResetPhotos
+  onResetPhotos,
+  isUserInputEnabled = true
 }) => {
   const [visitorName, setVisitorName] = useState('');
   const [visitorMessage, setVisitorMessage] = useState('');
@@ -128,10 +130,11 @@ export const Scene7Ending: React.FC<Scene7EndingProps> = ({
           </p>
           <button
             id="click-firework-burst-btn"
+            disabled={!isUserInputEnabled}
             onClick={handleManualFirework}
-            className="px-6 py-2.5 glass text-[10px] font-mono tracking-widest text-[#ffd700] rounded-full hover:bg-[rgba(251,191,36,0.15)] hover:border-[#fbbf24] transition duration-300 cursor-pointer shadow-lg shadow-yellow-500/5 select-none"
+            className="px-6 py-2.5 glass text-[10px] font-mono tracking-widest text-[#ffd700] rounded-full hover:bg-[rgba(251,191,36,0.15)] hover:border-[#fbbf24] transition duration-300 cursor-pointer shadow-lg shadow-yellow-500/5 select-none disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            💥 CLICK HERE TO SHOOT CUSTOM FIREWORKS
+            {isUserInputEnabled ? "💥 CLICK HERE TO SHOOT CUSTOM FIREWORKS" : "💥 CELEBRATION SPARKLERS PAUSED BY ADMIN"}
           </button>
         </div>
 
@@ -149,10 +152,11 @@ export const Scene7Ending: React.FC<Scene7EndingProps> = ({
                   id="guestbook-author-input"
                   type="text"
                   required
+                  disabled={!isUserInputEnabled}
                   value={visitorName}
                   onChange={(e) => setVisitorName(e.target.value)}
-                  placeholder="Your Name"
-                  className="w-full bg-slate-950/70 border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#b76e79]/60 font-sans"
+                  placeholder={isUserInputEnabled ? "Your Name" : "Guest registration paused"}
+                  className="w-full bg-slate-950/70 border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#b76e79]/60 font-sans disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
               <div>
@@ -160,16 +164,18 @@ export const Scene7Ending: React.FC<Scene7EndingProps> = ({
                   id="guestbook-message-input"
                   required
                   rows={3}
+                  disabled={!isUserInputEnabled}
                   value={visitorMessage}
                   onChange={(e) => setVisitorMessage(e.target.value)}
-                  placeholder="Write a sweet birthday wish for Disha..."
-                  className="w-full bg-slate-950/70 border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#b76e79]/60 font-sans resize-none"
+                  placeholder={isUserInputEnabled ? "Write a sweet birthday wish for Disha..." : "Sign-ups currently restricted by site administrator."}
+                  className="w-full bg-slate-950/70 border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#b76e79]/60 font-sans resize-none disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
               <button
                 id="guestbook-submit-btn"
                 type="submit"
-                className="w-full py-3 bg-gradient-to-r from-[#b76e79] to-[#c2818c] text-white rounded-xl font-sans text-xs font-semibold tracking-widest uppercase hover:brightness-110 transition cursor-pointer flex items-center justify-center gap-2 shadow shadow-[#b76e79]/20"
+                disabled={!isUserInputEnabled}
+                className="w-full py-3 bg-gradient-to-r from-[#b76e79] to-[#c2818c] text-white rounded-xl font-sans text-xs font-semibold tracking-widest uppercase hover:brightness-110 transition cursor-pointer flex items-center justify-center gap-2 shadow shadow-[#b76e79]/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Plus className="w-4 h-4" /> Save Wish to Register
               </button>

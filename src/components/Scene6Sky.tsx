@@ -9,13 +9,15 @@ interface Scene6SkyProps {
   onNext: () => void;
   onPrev: () => void;
   onLanternTrigger: (x: number) => void; // spawn rising lanterns dynamically
+  isUserInputEnabled?: boolean;
 }
 
 export const Scene6Sky: React.FC<Scene6SkyProps> = ({
   photos,
   onNext,
   onPrev,
-  onLanternTrigger
+  onLanternTrigger,
+  isUserInputEnabled = true
 }) => {
   const [wishText, setWishText] = useState('');
   const [activeWishes, setActiveWishes] = useState<string[]>([]);
@@ -45,6 +47,7 @@ export const Scene6Sky: React.FC<Scene6SkyProps> = ({
   };
 
   const handleDirectSkyClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isUserInputEnabled) return;
     // Spawn lantern exactly where userClicked horizontally!
     if ((e.target as HTMLElement).id === 'sky-touch-canvas-overlay') {
       onLanternTrigger(e.clientX);
@@ -116,16 +119,18 @@ export const Scene6Sky: React.FC<Scene6SkyProps> = ({
           <input
             id="wish-lantern-input"
             type="text"
+            disabled={!isUserInputEnabled}
             value={wishText}
             onChange={(e) => setWishText(e.target.value)}
-            placeholder="Type a wish for Disha..."
+            placeholder={isUserInputEnabled ? "Type a wish for Disha..." : "Admin has paused wish typing..."}
             maxLength={60}
-            className="flex-1 bg-slate-950/70 border border-[rgba(183,110,121,0.25)] rounded-full px-5 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#b76e79] font-sans pointer-events-auto"
+            className="flex-1 bg-slate-950/70 border border-[rgba(183,110,121,0.25)] rounded-full px-5 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#b76e79] font-sans pointer-events-auto disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <button
             id="send-wish-lantern-btn"
             type="submit"
-            className="w-10 h-10 rounded-full bg-gradient-to-r from-[#b76e79] to-[#c2818c] text-white flex items-center justify-center transition hover:scale-105 pointer-events-auto cursor-pointer"
+            disabled={!isUserInputEnabled}
+            className="w-10 h-10 rounded-full bg-gradient-to-r from-[#b76e79] to-[#c2818c] text-white flex items-center justify-center transition hover:scale-105 pointer-events-auto cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Send className="w-4 h-4 text-white" />
           </button>
