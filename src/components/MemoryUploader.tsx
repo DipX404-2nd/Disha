@@ -5,9 +5,10 @@ import { SavedPhoto, savePhoto } from '../utils/db';
 
 interface MemoryUploaderProps {
   onUploadComplete: (photos: SavedPhoto[]) => void;
+  celebrantName: string;
 }
 
-export const MemoryUploader: React.FC<MemoryUploaderProps> = ({ onUploadComplete }) => {
+export const MemoryUploader: React.FC<MemoryUploaderProps> = ({ onUploadComplete, celebrantName }) => {
   const [photos, setPhotos] = useState<SavedPhoto[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -197,10 +198,10 @@ export const MemoryUploader: React.FC<MemoryUploaderProps> = ({ onUploadComplete
             <Sparkles className="w-8 h-8 text-[#b76e79] rose-glow" />
           </motion.div>
           <h1 className="font-display text-4xl text-white tracking-wide mb-3">
-            Disha’s Birthday Journey
+            {celebrantName}’s Birthday Journey
           </h1>
           <p className="text-gray-400 text-sm max-w-md mx-auto lead-relaxed font-sans">
-            To craft a bespoke luxury digital gift for Disha, upload her beautiful photos. They will be processed securely on your device.
+            To craft a bespoke luxury digital gift for {celebrantName}, upload their beautiful photos. They will be processed securely on your device.
           </p>
         </div>
 
@@ -227,7 +228,7 @@ export const MemoryUploader: React.FC<MemoryUploaderProps> = ({ onUploadComplete
           />
           <Upload className="w-10 h-10 text-gray-500 mb-3" />
           <p className="font-semibold text-gray-300 text-sm text-center mb-1">
-            Drag & drop Disha’s photos here
+            Drag & drop {celebrantName}’s photos here
           </p>
           <p className="text-xs text-gray-500">
             or click to browse from device (JPEG, PNG, WebP)
@@ -309,7 +310,7 @@ export const MemoryUploader: React.FC<MemoryUploaderProps> = ({ onUploadComplete
                 : 'bg-gray-800 text-gray-500 cursor-not-allowed'
             }`}
           >
-            Begin Disha's Journey <ArrowRight className="w-4 h-4" />
+            Begin {celebrantName}'s Journey <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       </motion.div>

@@ -13,7 +13,7 @@ import { Scene7Ending } from './components/Scene7Ending';
 import { AdminDashboard } from './components/AdminDashboard';
 import { Sparkles, Music, Music2, Lock } from 'lucide-react';
 import { playDreamyChord } from './utils/audio';
-import { fetchCommittedConfig, getLocalLockState, getLocalApprovedIds, getUserInputAccessEnabled, getBirthdayMessageLines } from './utils/admin';
+import { fetchCommittedConfig, getLocalLockState, getLocalApprovedIds, getUserInputAccessEnabled, getBirthdayMessageLines, getCelebrantName, setCelebrantName } from './utils/admin';
 
 type ActiveScene = 'uploader' | 'opening' | 'tunnel' | 'gallery' | 'message' | 'cake' | 'sky' | 'ending';
 
@@ -22,6 +22,7 @@ export default function App() {
   const [scene, setScene] = useState<ActiveScene>('uploader');
   const [isUserInputEnabled, setIsUserInputEnabled] = useState<boolean>(true);
   const [msgLines, setMsgLines] = useState(() => getBirthdayMessageLines());
+  const [celebrantName, setCelebrantNameState] = useState(() => getCelebrantName());
   const [isLoading, setIsLoading] = useState(true);
   const [showAdmin, setShowAdmin] = useState(window.location.hash === '#admin');
   const particleCanvasRef = useRef<ParticleCanvasRef>(null);
@@ -51,6 +52,10 @@ export default function App() {
             line2: committedConfig.msgLine2 || '',
             line3: committedConfig.msgLine3 || ''
           });
+        }
+        if (committedConfig.celebrantName) {
+          setCelebrantNameState(committedConfig.celebrantName);
+          localStorage.setItem('disha_celebrant_name', committedConfig.celebrantName);
         }
         setScene('opening');
         return;
@@ -115,6 +120,7 @@ export default function App() {
     const approvedIds = getLocalApprovedIds();
     setIsUserInputEnabled(getUserInputAccessEnabled());
     setMsgLines(getBirthdayMessageLines());
+    setCelebrantNameState(getCelebrantName());
     
     // Filter photos based on approval
     const approvedPhotos = storedPhotos.filter(p => approvedIds.includes(p.id));
@@ -129,6 +135,11 @@ export default function App() {
         setScene('uploader');
       }
     }
+  };
+
+  const handleUpdateCelebrantName = (newName: string) => {
+    setCelebrantName(newName);
+    setCelebrantNameState(newName);
   };
 
   // Nav actions
@@ -207,15 +218,15 @@ export default function App() {
             className="w-full flex-1 flex flex-col items-center justify-center"
           >
             {scene === 'uploader' && (
-              <MemoryUploader onUploadComplete={handleUploadDone} />
+              <MemoryUploader onUploadComplete={handleUploadDone} celebrantName={celebrantName} />
             )}
 
             {scene === 'opening' && (
-              <Scene1Opening photos={photos} onNext={nextScene} />
+              <Scene1Opening photos={photos} onNext={nextScene} celebrantName={celebrantName} />
             )}
 
             {scene === 'tunnel' && (
-              <Scene2Tunnel photos={photos} onNext={nextScene} onPrev={prevScene} />
+              <Scene2Tunnel photos={photos} onNext={nextScene} onPrev={prevScene} celebrantName={celebrantName} />
             )}
 
             {scene === 'gallery' && (
@@ -224,11 +235,12 @@ export default function App() {
                 onNext={nextScene}
                 onPrev={prevScene}
                 onParticleTrigger={() => particleCanvasRef.current?.triggerConfetti()}
+                celebrantName={celebrantName}
               />
             )}
 
             {scene === 'message' && (
-              <Scene4Message msgLines={msgLines} onNext={nextScene} onPrev={prevScene} />
+              <Scene4Message msgLines={msgLines} onNext={nextScene} onPrev={prevScene} celebrantName={celebrantName} />
             )}
 
             {scene === 'cake' && (
@@ -237,6 +249,7 @@ export default function App() {
                 onPrev={prevScene}
                 onConfettiTrigger={() => particleCanvasRef.current?.triggerConfetti()}
                 onBalloonTrigger={() => particleCanvasRef.current?.triggerBalloon()}
+                celebrantName={celebrantName}
               />
             )}
 
@@ -247,6 +260,7 @@ export default function App() {
                 onNext={nextScene}
                 onPrev={prevScene}
                 onLanternTrigger={(x) => particleCanvasRef.current?.triggerLantern(x)}
+                celebrantName={celebrantName}
               />
             )}
 
@@ -258,6 +272,7 @@ export default function App() {
                 onFireworkTrigger={(x, y) => particleCanvasRef.current?.triggerFirework(x, y)}
                 onBalloonTrigger={() => particleCanvasRef.current?.triggerBalloon()}
                 onResetPhotos={clearAndResetPhotos}
+                celebrantName={celebrantName}
               />
             )}
           </motion.div>
@@ -288,6 +303,8 @@ export default function App() {
               }
             }} 
             onRefreshData={handleRefreshData}
+            celebrantName={celebrantName}
+            onUpdateCelebrantName={handleUpdateCelebrantName}
           />
         )}
       </AnimatePresence>

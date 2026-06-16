@@ -8,6 +8,7 @@ interface Scene2TunnelProps {
   photos: SavedPhoto[];
   onNext: () => void;
   onPrev: () => void;
+  celebrantName?: string;
 }
 
 export const Scene2Tunnel: React.FC<Scene2TunnelProps> = ({ photos, onNext, onPrev }) => {

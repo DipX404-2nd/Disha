@@ -11,9 +11,10 @@ interface Scene4MessageProps {
     line2: string;
     line3: string;
   };
+  celebrantName: string;
 }
 
-export const Scene4Message: React.FC<Scene4MessageProps> = ({ onNext, onPrev, msgLines }) => {
+export const Scene4Message: React.FC<Scene4MessageProps> = ({ onNext, onPrev, msgLines, celebrantName }) => {
   const [opened, setOpened] = useState(false);
 
   useEffect(() => {
@@ -28,7 +29,7 @@ export const Scene4Message: React.FC<Scene4MessageProps> = ({ onNext, onPrev, ms
 
   const line1Text = msgLines?.line1 || "May this year bring endless happiness, beautiful memories, success, laughter, and everything that makes you smile.";
   const line2Text = msgLines?.line2 || "You deserve all the joy in the world.";
-  const line3Text = msgLines?.line3 || "Happy Birthday, Disha";
+  const line3Text = msgLines?.line3 || `Happy Birthday, ${celebrantName}`;
 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center p-6 text-center select-none overflow-hidden z-20 w-full pt-16">
@@ -75,7 +76,7 @@ export const Scene4Message: React.FC<Scene4MessageProps> = ({ onNext, onPrev, ms
               </motion.div>
 
               <h3 className="font-display text-2xl text-white mb-2 font-semibold">
-                Bespoke Letter for Disha
+                Bespoke Letter for {celebrantName}
               </h3>
               <p className="text-gray-400 text-xs tracking-widest font-mono uppercase mb-6">
                 Click Wax Seal to Slide Open

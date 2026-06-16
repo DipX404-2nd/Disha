@@ -23,9 +23,11 @@ import {
 interface AdminDashboardProps {
   onClose: () => void;
   onRefreshData?: () => void;
+  celebrantName: string;
+  onUpdateCelebrantName: (name: string) => void;
 }
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onRefreshData }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onRefreshData, celebrantName, onUpdateCelebrantName }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return sessionStorage.getItem('disha_admin_authed') === 'true';
   });
@@ -36,6 +38,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onRefre
   const [isLocked, setIsLocked] = useState<boolean>(getLocalLockState());
   const [approvedIds, setApprovedIds] = useState<string[]>(getLocalApprovedIds());
   const [syncStatus, setSyncStatus] = useState<string>('');
+  
+  const [celebrantNameInput, setCelebrantNameInput] = useState<string>(celebrantName);
+
+  useEffect(() => {
+    setCelebrantNameInput(celebrantName);
+  }, [celebrantName]);
   
   // Load files for preview / import
   const [importStatus, setImportStatus] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -228,7 +236,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onRefre
         userInputAccessEnabled,
         msgLine1,
         msgLine2,
-        msgLine3
+        msgLine3,
+        celebrantName
       );
       const blob = new Blob([jsonContent], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -281,6 +290,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onRefre
             setMsgLine2(importedLine2);
             setMsgLine3(importedLine3);
             setBirthdayMessageLines(importedLine1, importedLine2, importedLine3);
+          }
+
+          // Apply celebrant name
+          const importedCelebrantName = configData.celebrantName || '';
+          if (importedCelebrantName) {
+            onUpdateCelebrantName(importedCelebrantName);
           }
 
           // Apply approved photo ids
@@ -422,7 +437,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onRefre
                   </span>
                 </div>
                 <h2 className="font-display text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                  Disha's Birthday Web Customizer <Sparkles className="w-5 h-5 text-amber-300" />
+                  {celebrantName}'s Birthday Web Customizer <Sparkles className="w-5 h-5 text-amber-300" />
                 </h2>
               </div>
               
@@ -551,6 +566,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onRefre
                   </button>
                 </div>
 
+                {/* 1.55 CELEBRANT NAME CUSTOMIZER */}
+                <div className="glass p-5 rounded-xl border border-white/5 space-y-4">
+                  <div>
+                    <h3 className="font-display text-sm font-semibold text-gray-300 tracking-wide flex items-center gap-2 uppercase">
+                      Celebrant Name Customizer
+                    </h3>
+                    <p className="text-[10px] text-gray-400 leading-relaxed font-sans">
+                      Change the main celebrant's name dynamically from {celebrantName} to anything else instantly across all pages.
+                    </p>
+                  </div>
+
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!celebrantNameInput.trim()) return;
+                    executeProtectedAction(() => {
+                      onUpdateCelebrantName(celebrantNameInput.trim());
+                      showNotice(`Celebrant name updated to ${celebrantNameInput.trim()}!`);
+                    }, `Change celebrant's name to ${celebrantNameInput.trim()}`);
+                  }} className="space-y-3.5">
+                    <div>
+                      <input
+                        type="text"
+                        required
+                        value={celebrantNameInput}
+                        onChange={(e) => setCelebrantNameInput(e.target.value)}
+                        placeholder="e.g. Sneha"
+                        className="w-full bg-[#0d0a18]/80 text-white font-sans text-xs px-3.5 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:border-[#b76e79]/50 transition"
+                      />
+                    </div>
+                    <button
+                      id="admin-update-celebrant-name-btn"
+                      type="submit"
+                      className="w-full py-2 bg-gradient-to-r from-[#b76e79]/80 to-[#c2818c]/80 hover:brightness-110 text-white text-[10px] font-mono tracking-widest uppercase transition rounded-lg cursor-pointer"
+                    >
+                      Update Celebrant Name
+                    </button>
+                  </form>
+                </div>
+
                 {/* 1.6 BIRTHDAY CARD MESSAGE CUSTOMIZER */}
                 <div className="glass p-5 rounded-xl border border-white/5 space-y-4">
                   <div>
@@ -558,7 +612,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onRefre
                       Step 4 Letter Message
                     </h3>
                     <p className="text-[10px] text-gray-400 leading-relaxed font-sans">
-                      Dynamically tailor the digital birthday letter written for Disha inside Step 4's Royal Envelope.
+                      Dynamically tailor the digital birthday letter written for {celebrantName} inside Step 4's Royal Envelope.
                     </p>
                   </div>
 
@@ -594,7 +648,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onRefre
                         required
                         value={msgLine3}
                         onChange={(e) => setMsgLine3(e.target.value)}
-                        placeholder="Happy Birthday, Disha"
+                        placeholder={`Happy Birthday, ${celebrantName}`}
                         className="w-full bg-[#0d0a18]/80 text-[#ffd700] font-sans font-medium gold-glow text-xs px-3.5 py-2.5 rounded-lg border border-white/10 focus:outline-none focus:border-[#b76e79]/50 transition"
                       />
                     </div>

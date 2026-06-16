@@ -8,13 +8,15 @@ interface Scene5CakeProps {
   onPrev: () => void;
   onConfettiTrigger: () => void; // Trigger full confetti bursts
   onBalloonTrigger: () => void;  // Launch balloons
+  celebrantName: string;
 }
 
 export const Scene5Cake: React.FC<Scene5CakeProps> = ({
   onNext,
   onPrev,
   onConfettiTrigger,
-  onBalloonTrigger
+  onBalloonTrigger,
+  celebrantName
 }) => {
   const [candles, setCandles] = useState<boolean[]>([false, false, false, false, false]);
   const [phase, setPhase] = useState<'lighting' | 'wish' | 'cut' | 'cutCompleted'>('lighting');
@@ -100,7 +102,7 @@ export const Scene5Cake: React.FC<Scene5CakeProps> = ({
                 exit={{ opacity: 0, y: -10 }}
                 className="text-amber-300 text-sm tracking-wide"
               >
-                🕯️ Make a silent wish inside your heart for Disha, then click "Cut the Cake" below!
+                🕯️ Make a silent wish inside your heart for {celebrantName}, then click "Cut the Cake" below!
               </motion.p>
             )}
             {phase === 'cutCompleted' && (
@@ -110,7 +112,7 @@ export const Scene5Cake: React.FC<Scene5CakeProps> = ({
                 animate={{ opacity: 1, y: 1 }}
                 className="text-emerald-400 text-sm tracking-wide font-semibold inline-flex items-center gap-2"
               >
-                🎉 Hurray! Happy Birthday Disha! The skies are fully celebrating you! ❤️
+                🎉 Hurray! Happy Birthday {celebrantName}! The skies are fully celebrating you! ❤️
               </motion.p>
             )}
           </AnimatePresence>
@@ -182,7 +184,7 @@ export const Scene5Cake: React.FC<Scene5CakeProps> = ({
                 
                 {/* "Disha" plate */}
                 <span className="font-hand text-2xl text-white drop-shadow select-none">
-                  Disha
+                  {celebrantName}
                 </span>
               </motion.div>
 

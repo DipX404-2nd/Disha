@@ -7,9 +7,10 @@ import { playDreamyChord } from '../utils/audio';
 interface Scene1OpeningProps {
   photos: SavedPhoto[];
   onNext: () => void;
+  celebrantName: string;
 }
 
-export const Scene1Opening: React.FC<Scene1OpeningProps> = ({ photos, onNext }) => {
+export const Scene1Opening: React.FC<Scene1OpeningProps> = ({ photos, onNext, celebrantName }) => {
   const heroPhoto = photos[0]?.dataUrl;
 
   const handleBegin = () => {
@@ -28,7 +29,7 @@ export const Scene1Opening: React.FC<Scene1OpeningProps> = ({ photos, onNext }) 
             animate={{ scale: 1.0, opacity: 0.35 }}
             transition={{ duration: 2.2, ease: 'easeOut' }}
             src={heroPhoto}
-            alt="Disha background"
+            alt={`${celebrantName} background`}
             referrerPolicy="no-referrer"
             className="w-full h-full object-cover blur-md scale-[1.05]"
           />
@@ -62,7 +63,7 @@ export const Scene1Opening: React.FC<Scene1OpeningProps> = ({ photos, onNext }) 
               <div className="w-full h-full rounded-full overflow-hidden border border-[rgba(255,255,255,0.15)] shadow-inner">
                 <img
                   src={heroPhoto}
-                  alt="Disha Portrait"
+                  alt={`${celebrantName} Portrait`}
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover cursor-default hover:scale-110 duration-1000 transition-transform"
                 />
@@ -83,7 +84,7 @@ export const Scene1Opening: React.FC<Scene1OpeningProps> = ({ photos, onNext }) 
           <h1 className="font-display text-5xl sm:text-7xl font-bold tracking-tight text-white mb-6 select-none leading-none">
             Happy Birthday <br />
             <span className="animate-gradient-text rose-glow relative inline-block mt-1">
-              Disha
+              {celebrantName}
             </span>
           </h1>
         </motion.div>

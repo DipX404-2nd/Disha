@@ -17,6 +17,7 @@ interface Scene7EndingProps {
   onBalloonTrigger: () => void;
   onResetPhotos: () => void; // allow re-uploading
   isUserInputEnabled?: boolean;
+  celebrantName: string;
 }
 
 export const Scene7Ending: React.FC<Scene7EndingProps> = ({
@@ -25,7 +26,8 @@ export const Scene7Ending: React.FC<Scene7EndingProps> = ({
   onFireworkTrigger,
   onBalloonTrigger,
   onResetPhotos,
-  isUserInputEnabled = true
+  isUserInputEnabled = true,
+  celebrantName
 }) => {
   const [visitorName, setVisitorName] = useState('');
   const [visitorMessage, setVisitorMessage] = useState('');
@@ -34,7 +36,8 @@ export const Scene7Ending: React.FC<Scene7EndingProps> = ({
   // Load guest registry on mount
   useEffect(() => {
     playDreamyChord();
-    const stored = localStorage.getItem('disha_birthday_wishes');
+    const storageKey = `${celebrantName.toLowerCase()}_birthday_wishes`;
+    const stored = localStorage.getItem(storageKey);
     if (stored) {
       try {
         setSavedWishes(JSON.parse(stored));
@@ -52,7 +55,7 @@ export const Scene7Ending: React.FC<Scene7EndingProps> = ({
     }, 2800);
 
     return () => clearInterval(fworkInterval);
-  }, []);
+  }, [celebrantName]);
 
   const handleManualFirework = (e: React.MouseEvent) => {
     // Explode firework right where the cursor triggers!
@@ -73,7 +76,8 @@ export const Scene7Ending: React.FC<Scene7EndingProps> = ({
 
     const updated = [newWish, ...savedWishes];
     setSavedWishes(updated);
-    localStorage.setItem('disha_birthday_wishes', JSON.stringify(updated));
+    const storageKey = `${celebrantName.toLowerCase()}_birthday_wishes`;
+    localStorage.setItem(storageKey, JSON.stringify(updated));
 
     setVisitorName('');
     setVisitorMessage('');
@@ -82,7 +86,8 @@ export const Scene7Ending: React.FC<Scene7EndingProps> = ({
   };
 
   const handleClearWishes = () => {
-    localStorage.removeItem('disha_birthday_wishes');
+    const storageKey = `${celebrantName.toLowerCase()}_birthday_wishes`;
+    localStorage.removeItem(storageKey);
     setSavedWishes([]);
   };
 
@@ -108,7 +113,7 @@ export const Scene7Ending: React.FC<Scene7EndingProps> = ({
           <h1 className="font-display text-4xl sm:text-7xl font-bold tracking-tight text-white mb-2 leading-tight select-none">
             Happy Birthday <br />
             <span className="animate-gradient-text ease-in-out duration-3000 inline-block mt-2 rose-glow select-none">
-              Disha ❤️
+              {celebrantName} ❤️
             </span>
           </h1>
         </motion.div>
@@ -144,7 +149,7 @@ export const Scene7Ending: React.FC<Scene7EndingProps> = ({
           {/* Registry Sign form */}
           <div className="glass p-6 rounded-2xl border border-[rgba(255,255,255,0.06)] relative select-none">
             <h3 className="font-display text-lg text-white mb-5 flex items-center gap-2 font-semibold">
-              <PenTool className="w-4.5 h-4.5 text-[#b76e79]" /> Sign Her Guest Book
+              <PenTool className="w-4.5 h-4.5 text-[#b76e79]" /> Sign {celebrantName}'s Guest Book
             </h3>
             <form onSubmit={submitRegistry} className="space-y-4">
               <div>
@@ -167,7 +172,7 @@ export const Scene7Ending: React.FC<Scene7EndingProps> = ({
                   disabled={!isUserInputEnabled}
                   value={visitorMessage}
                   onChange={(e) => setVisitorMessage(e.target.value)}
-                  placeholder={isUserInputEnabled ? "Write a sweet birthday wish for Disha..." : "Sign-ups currently restricted by site administrator."}
+                  placeholder={isUserInputEnabled ? `Write a sweet birthday wish for ${celebrantName}...` : "Sign-ups currently restricted by site administrator."}
                   className="w-full bg-slate-950/70 border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#b76e79]/60 font-sans resize-none disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>

@@ -9,6 +9,7 @@ interface Scene3GalleryProps {
   onNext: () => void;
   onPrev: () => void;
   onParticleTrigger: () => void; // call parent particle system to trigger hearts
+  celebrantName?: string;
 }
 
 export const Scene3Gallery: React.FC<Scene3GalleryProps> = ({

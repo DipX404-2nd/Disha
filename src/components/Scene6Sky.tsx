@@ -10,6 +10,7 @@ interface Scene6SkyProps {
   onPrev: () => void;
   onLanternTrigger: (x: number) => void; // spawn rising lanterns dynamically
   isUserInputEnabled?: boolean;
+  celebrantName: string;
 }
 
 export const Scene6Sky: React.FC<Scene6SkyProps> = ({
@@ -17,7 +18,8 @@ export const Scene6Sky: React.FC<Scene6SkyProps> = ({
   onNext,
   onPrev,
   onLanternTrigger,
-  isUserInputEnabled = true
+  isUserInputEnabled = true,
+  celebrantName
 }) => {
   const [wishText, setWishText] = useState('');
   const [activeWishes, setActiveWishes] = useState<string[]>([]);
@@ -69,7 +71,7 @@ export const Scene6Sky: React.FC<Scene6SkyProps> = ({
             animate={{ scale: [1.0, 1.15, 1.0] }}
             transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
             src={blendPhoto}
-            alt="Blended Disha Silhouette"
+            alt={`Blended ${celebrantName} Silhouette`}
             referrerPolicy="no-referrer"
             className="w-full h-full object-cover rounded-full mix-blend-color-dodge blur-sm"
           />
@@ -90,7 +92,7 @@ export const Scene6Sky: React.FC<Scene6SkyProps> = ({
           Dream Sky Celebration
         </h2>
         <p className="text-gray-400 font-sans text-sm leading-relaxed max-w-md mx-auto">
-          The entire sky celebrates Disha. Write your sweet dreams or click the night sky to release glowing digital lanterns.
+          The entire sky celebrates {celebrantName}. Write your sweet dreams or click the night sky to release glowing digital lanterns.
         </p>
       </div>
 
@@ -122,7 +124,7 @@ export const Scene6Sky: React.FC<Scene6SkyProps> = ({
             disabled={!isUserInputEnabled}
             value={wishText}
             onChange={(e) => setWishText(e.target.value)}
-            placeholder={isUserInputEnabled ? "Type a wish for Disha..." : "Admin has paused wish typing..."}
+            placeholder={isUserInputEnabled ? `Type a wish for ${celebrantName}...` : "Admin has paused wish typing..."}
             maxLength={60}
             className="flex-1 bg-slate-950/70 border border-[rgba(183,110,121,0.25)] rounded-full px-5 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#b76e79] font-sans pointer-events-auto disabled:opacity-50 disabled:cursor-not-allowed"
           />
