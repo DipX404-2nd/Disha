@@ -1,14 +1,21 @@
 import React, { useState, useRef } from 'react';
-import { Upload, Sparkles, Image as ImageIcon, Trash2, ArrowRight } from 'lucide-react';
+import { Upload, Sparkles, Image as ImageIcon, Trash2, ArrowRight, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SavedPhoto, savePhoto } from '../utils/db';
 
 interface MemoryUploaderProps {
   onUploadComplete: (photos: SavedPhoto[]) => void;
   celebrantName: string;
+  isWaitingForApproval?: boolean;
+  onResetPending?: () => void;
 }
 
-export const MemoryUploader: React.FC<MemoryUploaderProps> = ({ onUploadComplete, celebrantName }) => {
+export const MemoryUploader: React.FC<MemoryUploaderProps> = ({ 
+  onUploadComplete, 
+  celebrantName,
+  isWaitingForApproval = false,
+  onResetPending
+}) => {
   const [photos, setPhotos] = useState<SavedPhoto[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -173,6 +180,74 @@ export const MemoryUploader: React.FC<MemoryUploaderProps> = ({ onUploadComplete
     }
     onUploadComplete(demoPhotos);
   };
+
+  if (isWaitingForApproval) {
+    return (
+      <div id="holding-container" className="min-h-screen flex items-center justify-center p-6 relative z-10 select-none">
+        <div className="absolute inset-0 bg-radial-gradient from-transparent to-[#050510] pointer-events-none" />
+        
+        {/* Visual ripples */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full border border-[rgba(235,145,155,0.05)] animate-pulse pointer-events-none" />
+        
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8 }}
+          className="max-w-md w-full glass-premium p-8 rounded-2xl text-center relative z-10 border border-[rgba(183,110,121,0.25)] shadow-2xl shadow-[#b76e79]/5"
+        >
+          <div className="relative mb-6">
+            <div className="absolute inset-0 rounded-full bg-[#b76e79]/10 blur-xl animate-pulse" />
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 12, ease: "linear" }}
+              className="w-20 h-20 mx-auto rounded-full border-2 border-dashed border-[#b76e79]/60 flex items-center justify-center p-2"
+            >
+              <div className="w-14 h-14 rounded-full bg-[#b76e79]/15 flex items-center justify-center">
+                <Sparkles className="w-7 h-7 text-[#b76e79] rose-glow animate-ping absolute" />
+                <Sparkles className="w-7 h-7 text-[#b76e79] rose-glow z-10" />
+              </div>
+            </motion.div>
+          </div>
+
+          <h1 className="font-display text-2xl text-white tracking-wide mb-3 uppercase">
+            Memories Submitted! ✨
+          </h1>
+          <p className="text-[#f3cbd1] text-xs font-mono tracking-widest uppercase mb-5 animate-pulse">
+            Awaiting Admin Approval
+          </p>
+
+          <div className="rounded-xl bg-slate-950/40 p-5 border border-white/[0.03] text-left mb-6">
+            <h3 className="text-gray-300 font-medium text-xs font-mono mb-2 uppercase tracking-wide flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" /> Connection Log
+            </h3>
+            <p className="text-gray-400 text-xs leading-relaxed">
+              Your lovely photo memories have reached {celebrantName}’s Admin panel successfully. 
+            </p>
+            <p className="text-gray-400 text-xs leading-relaxed mt-2">
+              The cinematic birthday journey will automatically blossom on your screen once approved! Keep this page open.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-center gap-2 text-[11px] font-mono tracking-wider text-gray-500">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              <span>SYNCING WITH CLOUD STORAGE...</span>
+            </div>
+
+            {onResetPending && (
+              <button
+                id="reset-pending-upload-btn"
+                onClick={onResetPending}
+                className="mt-4 text-xs font-sans text-red-400 hover:underline cursor-pointer opacity-70 hover:opacity-100 transition duration-200"
+              >
+                Cancel & Upload different photos
+              </button>
+            )}
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div id="uploader-container" className="min-h-screen flex items-center justify-center p-6 relative z-10 select-none">

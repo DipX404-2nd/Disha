@@ -26,6 +26,15 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [showAdmin, setShowAdmin] = useState(window.location.hash === '#admin');
   const particleCanvasRef = useRef<ParticleCanvasRef>(null);
+  
+  const [myUploadedPhotoIds, setMyUploadedPhotoIds] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('disha_my_uploaded_photo_ids') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const [isWaitingForApproval, setIsWaitingForApproval] = useState<boolean>(false);
 
   // Monitor window hash changes for admin routing
   useEffect(() => {
@@ -57,19 +66,31 @@ export default function App() {
         }
         setCelebrantNameState(serverState.celebrantName);
         
-        // Match photos against backend approvedIDs
         const approvedIds = serverState.approvedPhotoIds || [];
         const approvedPhotos = serverPhotos.filter(p => approvedIds.includes(p.id));
-        const activePhotos = approvedPhotos.length > 0 ? approvedPhotos : serverPhotos;
-        setPhotos(activePhotos);
 
-        if (serverState.isLocked) {
-          setScene('opening');
+        // Filter out demo pictures to find out if custom photos were uploaded on this phone
+        const customUploadedIds = myUploadedPhotoIds.filter(id => !id.startsWith('demo-'));
+        const hasCustomUploaded = customUploadedIds.length > 0;
+        const isDeviceApproved = customUploadedIds.some(id => approvedIds.includes(id));
+
+        if (hasCustomUploaded && !isDeviceApproved) {
+          setIsWaitingForApproval(true);
+          setPhotos([]);
+          setScene('uploader');
         } else {
-          if (activePhotos.length > 0) {
+          setIsWaitingForApproval(false);
+          const activePhotos = approvedPhotos.length > 0 ? approvedPhotos : [];
+          setPhotos(activePhotos.length > 0 ? activePhotos : serverPhotos);
+
+          if (serverState.isLocked) {
             setScene('opening');
           } else {
-            setScene('uploader');
+            if (activePhotos.length > 0) {
+              setScene('opening');
+            } else {
+              setScene('uploader');
+            }
           }
         }
         return;
@@ -122,7 +143,7 @@ export default function App() {
     }
   };
 
-  // Synchronize from server periodically in the background (8s interval poll) for multiplayer feel
+  // Synchronize from server periodically in the background (4s interval poll) for multiplayer feel
   useEffect(() => {
     let active = true;
     const fetchUpdatesSilently = async () => {
@@ -140,18 +161,46 @@ export default function App() {
         
         const approvedIds = serverState.approvedPhotoIds || [];
         const approvedPhotos = serverPhotos.filter(p => approvedIds.includes(p.id));
-        setPhotos(approvedPhotos.length > 0 ? approvedPhotos : serverPhotos);
+
+        // Check if user has uploaded photos and if any are approved
+        const customUploadedIds = myUploadedPhotoIds.filter(id => !id.startsWith('demo-'));
+        const hasCustomUploaded = customUploadedIds.length > 0;
+        const isDeviceApproved = customUploadedIds.some(id => approvedIds.includes(id));
+
+        if (hasCustomUploaded && !isDeviceApproved) {
+          setIsWaitingForApproval(true);
+          setPhotos([]);
+          if (scene !== 'uploader') {
+            setScene('uploader');
+          }
+        } else {
+          if (isWaitingForApproval) {
+            playDreamyChord();
+          }
+          setIsWaitingForApproval(false);
+          
+          const activePhotos = approvedPhotos.length > 0 ? approvedPhotos : [];
+          setPhotos(activePhotos.length > 0 ? activePhotos : serverPhotos);
+          
+          if (scene === 'uploader') {
+            if (serverState.isLocked) {
+              setScene('opening');
+            } else if (activePhotos.length > 0) {
+              setScene('opening');
+            }
+          }
+        }
       } catch (err) {
         // Fail silently to keep UX stellar
       }
     };
     
-    const interval = setInterval(fetchUpdatesSilently, 8000);
+    const interval = setInterval(fetchUpdatesSilently, 4000);
     return () => {
       active = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [myUploadedPhotoIds, isWaitingForApproval, scene]);
 
   // Load photos from config or IndexedDB on startup
   useEffect(() => {
@@ -159,8 +208,11 @@ export default function App() {
   }, []);
 
   const handleUploadDone = async (uploaded: SavedPhoto[]) => {
-    setPhotos(uploaded);
-    setScene('opening');
+    // Record my uploaded photo IDs
+    const uploadedIds = uploaded.map(p => p.id);
+    localStorage.setItem('disha_my_uploaded_photo_ids', JSON.stringify(uploadedIds));
+    setMyUploadedPhotoIds(uploadedIds);
+
     playDreamyChord();
 
     // Push uploaded photos to the shared cloud server db
@@ -168,15 +220,31 @@ export default function App() {
       for (const p of uploaded) {
         await uploadServerPhoto(p);
       }
-      // Re-fetch to stay perfectly synced
-      const serverPhotos = await getServerPhotos();
-      const state = await getServerState();
-      const approvedIds = state.approvedPhotoIds || [];
-      const approvedPhotos = serverPhotos.filter(p => approvedIds.includes(p.id));
-      setPhotos(approvedPhotos.length > 0 ? approvedPhotos : serverPhotos);
+      
+      const customUploadedIds = uploadedIds.filter(id => !id.startsWith('demo-'));
+      if (customUploadedIds.length === 0) {
+        // Simple demo/art experience skips uploader immediately
+        setPhotos(uploaded);
+        setScene('opening');
+      } else {
+        // Custom files require admin approval
+        setIsWaitingForApproval(true);
+        setPhotos([]);
+        setScene('uploader');
+      }
     } catch (e) {
       console.error("Failed to upload assets to server storage:", e);
+      setPhotos(uploaded);
+      setScene('opening');
     }
+  };
+
+  const handleResetPending = () => {
+    localStorage.removeItem('disha_my_uploaded_photo_ids');
+    setMyUploadedPhotoIds([]);
+    setIsWaitingForApproval(false);
+    setPhotos([]);
+    setScene('uploader');
   };
 
   const clearAndResetPhotos = async () => {
@@ -206,16 +274,28 @@ export default function App() {
       
       const approvedIds = serverState.approvedPhotoIds || [];
       const approvedPhotos = serverPhotos.filter(p => approvedIds.includes(p.id));
-      const activePhotos = approvedPhotos.length > 0 ? approvedPhotos : serverPhotos;
-      setPhotos(activePhotos);
 
-      if (serverState.isLocked) {
-        if (scene === 'uploader') {
-          setScene('opening');
-        }
+      const customUploadedIds = myUploadedPhotoIds.filter(id => !id.startsWith('demo-'));
+      const hasCustomUploaded = customUploadedIds.length > 0;
+      const isDeviceApproved = customUploadedIds.some(id => approvedIds.includes(id));
+
+      if (hasCustomUploaded && !isDeviceApproved) {
+        setIsWaitingForApproval(true);
+        setPhotos([]);
+        setScene('uploader');
       } else {
-        if (activePhotos.length === 0) {
-          setScene('uploader');
+        setIsWaitingForApproval(false);
+        const activePhotos = approvedPhotos.length > 0 ? approvedPhotos : [];
+        setPhotos(activePhotos.length > 0 ? activePhotos : serverPhotos);
+
+        if (serverState.isLocked) {
+          if (scene === 'uploader') {
+            setScene('opening');
+          }
+        } else {
+          if (activePhotos.length === 0) {
+            setScene('uploader');
+          }
         }
       }
     } catch (e) {
@@ -317,7 +397,12 @@ export default function App() {
             className="w-full flex-1 flex flex-col items-center justify-center"
           >
             {scene === 'uploader' && (
-              <MemoryUploader onUploadComplete={handleUploadDone} celebrantName={celebrantName} />
+              <MemoryUploader 
+                onUploadComplete={handleUploadDone} 
+                celebrantName={celebrantName} 
+                isWaitingForApproval={isWaitingForApproval}
+                onResetPending={handleResetPending}
+              />
             )}
 
             {scene === 'opening' && (

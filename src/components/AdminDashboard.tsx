@@ -17,7 +17,12 @@ import {
   getUserInputAccessEnabled,
   setUserInputAccessEnabled,
   getBirthdayMessageLines,
-  setBirthdayMessageLines
+  setBirthdayMessageLines,
+  getServerPhotos,
+  getServerState,
+  deleteServerPhoto,
+  uploadServerPhoto,
+  clearServerPhotos
 } from '../utils/admin';
 
 interface AdminDashboardProps {
@@ -71,24 +76,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onRefre
   useEffect(() => {
     if (isAuthenticated) {
       loadPhotosPool();
+      
+      // Auto-poll every 4 seconds to instantly fetch Phone B's uploaded photos!
+      const interval = setInterval(() => {
+        loadPhotosPool();
+      }, 4000);
+      
+      return () => clearInterval(interval);
     }
   }, [isAuthenticated]);
 
   const loadPhotosPool = async () => {
-    const allPhotos = await getPhotos();
-    setPhotosPool(allPhotos);
-    
-    // Auto-approve photos that are already in the approved set.
-    // If approvedIds list is entirely empty, we default-approve everything so that
-    // there's a fallback, or we let them manually approve. Let's synchronize the IDs.
-    const currentApproved = getLocalApprovedIds();
-    if (currentApproved.length === 0 && allPhotos.length > 0) {
-      // Initialize with all photos approved
-      const allIds = allPhotos.map(p => p.id);
-      setApprovedIds(allIds);
-      setLocalApprovedIds(allIds);
-    } else {
-      setApprovedIds(currentApproved);
+    try {
+      const allPhotos = await getServerPhotos();
+      setPhotosPool(allPhotos);
+      
+      const serverState = await getServerState();
+      
+      setIsLocked(serverState.isLocked);
+      setUserInputAccessEnabledState(serverState.userInputAccessEnabled);
+      if (serverState.msgLines) {
+        setMsgLine1(serverState.msgLines.line1 || msgLine1);
+        setMsgLine2(serverState.msgLines.line2 || msgLine2);
+        setMsgLine3(serverState.msgLines.line3 || msgLine3);
+      }
+      
+      setApprovedIds(serverState.approvedPhotoIds || []);
+    } catch (err) {
+      console.warn("Could not load photos pool from server, falling back to local DB.", err);
+      const allPhotos = await getPhotos();
+      setPhotosPool(allPhotos);
+      setApprovedIds(getLocalApprovedIds());
     }
   };
 
@@ -171,7 +189,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onRefre
   const handleDeletePhoto = async (id: string) => {
     if (confirm('Permanently remove this photo from database pool?')) {
       executeProtectedAction(async () => {
-        await deletePhoto(id);
+        try {
+          await deleteServerPhoto(id);
+        } catch {
+          await deletePhoto(id);
+        }
         const updatedApproved = approvedIds.filter(photoId => photoId !== id);
         setApprovedIds(updatedApproved);
         setLocalApprovedIds(updatedApproved);
@@ -303,10 +325,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onRefre
           setApprovedIds(importedApprovedIds);
           setLocalApprovedIds(importedApprovedIds);
 
-          // Import photos themselves into IndexedDB
+          // Import photos themselves into IndexedDB and remote Cloud DB
           const importedPhotos = Array.isArray(configData.photos) ? configData.photos : [];
           if (importedPhotos.length > 0) {
             for (const photo of importedPhotos) {
+              try {
+                await uploadServerPhoto(photo);
+              } catch (err) {
+                console.warn("Could not sync photo to server database on file import:", err);
+              }
               await savePhoto(photo);
             }
           }
@@ -327,6 +354,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onRefre
   const handlePurgeAll = async () => {
     if (confirm('⚠️ WARNING: This will completely wipe all uploaded photos from the local database pool. This cannot be undone. Proceed?')) {
       executeProtectedAction(async () => {
+        try {
+          await clearServerPhotos();
+        } catch (err) {
+          console.warn("Could not clear photos pool on server database purge:", err);
+        }
         await clearPhotos();
         setApprovedIds([]);
         setLocalApprovedIds([]);
