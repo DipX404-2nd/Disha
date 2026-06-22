@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Heart, RefreshCw, PenTool, Plus } from 'lucide-react';
 import { playDreamyChord, playChimeTrail } from '../utils/audio';
+import { getServerWishes, uploadServerWish, clearServerWishes } from '../utils/admin';
 
 interface SavedWish {
   id: string;
@@ -33,18 +34,38 @@ export const Scene7Ending: React.FC<Scene7EndingProps> = ({
   const [visitorMessage, setVisitorMessage] = useState('');
   const [savedWishes, setSavedWishes] = useState<SavedWish[]>([]);
 
-  // Load guest registry on mount
+  // Load guest registry on mount and pull periodically
   useEffect(() => {
     playDreamyChord();
-    const storageKey = `${celebrantName.toLowerCase()}_birthday_wishes`;
-    const stored = localStorage.getItem(storageKey);
-    if (stored) {
+    
+    const loadWishes = async () => {
       try {
-        setSavedWishes(JSON.parse(stored));
-      } catch (e) {
-        console.warn('Failed to read stored wishes:', e);
+        const serverWishes = await getServerWishes();
+        const mapped = serverWishes.map((w: any) => ({
+          id: w.id,
+          author: w.name,
+          message: w.message,
+          timestamp: w.timestamp
+        }));
+        setSavedWishes(mapped);
+      } catch (err) {
+        // Fallback to local storage if server down
+        const storageKey = `${celebrantName.toLowerCase()}_birthday_wishes`;
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+          try {
+            setSavedWishes(JSON.parse(stored));
+          } catch (e) {
+            console.warn('Failed to read stored wishes:', e);
+          }
+        }
       }
-    }
+    };
+    
+    loadWishes();
+
+    // Setup periodic polling to sync wishes from other devices instantly (every 5 seconds)
+    const interval = setInterval(loadWishes, 5000);
 
     // Auto-spawn persistent celebration bursts
     onFireworkTrigger();
@@ -54,7 +75,10 @@ export const Scene7Ending: React.FC<Scene7EndingProps> = ({
       onFireworkTrigger(Math.random() * window.innerWidth, window.innerHeight * 0.2 + Math.random() * window.innerHeight * 0.3);
     }, 2800);
 
-    return () => clearInterval(fworkInterval);
+    return () => {
+      clearInterval(interval);
+      clearInterval(fworkInterval);
+    };
   }, [celebrantName]);
 
   const handleManualFirework = (e: React.MouseEvent) => {
@@ -63,7 +87,7 @@ export const Scene7Ending: React.FC<Scene7EndingProps> = ({
     playChimeTrail();
   };
 
-  const submitRegistry = (e: React.FormEvent) => {
+  const submitRegistry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!visitorName.trim() || !visitorMessage.trim()) return;
 
@@ -74,10 +98,33 @@ export const Scene7Ending: React.FC<Scene7EndingProps> = ({
       timestamp: Date.now()
     };
 
+    // Optimistic local update
     const updated = [newWish, ...savedWishes];
     setSavedWishes(updated);
+    
+    // Backup local write
     const storageKey = `${celebrantName.toLowerCase()}_birthday_wishes`;
     localStorage.setItem(storageKey, JSON.stringify(updated));
+
+    // Post to server db
+    try {
+      await uploadServerWish({
+        id: newWish.id,
+        name: newWish.author,
+        message: newWish.message,
+        timestamp: newWish.timestamp
+      });
+      // reload registry
+      const serverWishes = await getServerWishes();
+      setSavedWishes(serverWishes.map((w: any) => ({
+        id: w.id,
+        author: w.name,
+        message: w.message,
+        timestamp: w.timestamp
+      })));
+    } catch (err) {
+      console.error("Failed to post wish to server database:", err);
+    }
 
     setVisitorName('');
     setVisitorMessage('');
@@ -85,7 +132,12 @@ export const Scene7Ending: React.FC<Scene7EndingProps> = ({
     onFireworkTrigger(); // spawn a celebrate firework
   };
 
-  const handleClearWishes = () => {
+  const handleClearWishes = async () => {
+    try {
+      await clearServerWishes();
+    } catch (err) {
+      console.error("Failed to clear wishes from server:", err);
+    }
     const storageKey = `${celebrantName.toLowerCase()}_birthday_wishes`;
     localStorage.removeItem(storageKey);
     setSavedWishes([]);

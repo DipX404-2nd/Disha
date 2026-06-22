@@ -13,7 +13,7 @@ import { Scene7Ending } from './components/Scene7Ending';
 import { AdminDashboard } from './components/AdminDashboard';
 import { Sparkles, Music, Music2, Lock } from 'lucide-react';
 import { playDreamyChord } from './utils/audio';
-import { fetchCommittedConfig, getLocalLockState, getLocalApprovedIds, getUserInputAccessEnabled, getBirthdayMessageLines, getCelebrantName, setCelebrantName } from './utils/admin';
+import { fetchCommittedConfig, getLocalLockState, getLocalApprovedIds, getUserInputAccessEnabled, getBirthdayMessageLines, getCelebrantName, setCelebrantName, getServerState, getServerPhotos, uploadServerPhoto, clearServerPhotos } from './utils/admin';
 
 type ActiveScene = 'uploader' | 'opening' | 'tunnel' | 'gallery' | 'message' | 'cake' | 'sky' | 'ending';
 
@@ -40,10 +40,44 @@ export default function App() {
     try {
       setIsLoading(true);
       
-      // Step A: Check if a dedicated config is committed via JSON in the deployment
+      // Step A: Contact the backend to synchronize all photos, locks, and designs across devices
+      let serverState = null;
+      let serverPhotos: SavedPhoto[] = [];
+      try {
+        serverState = await getServerState();
+        serverPhotos = await getServerPhotos();
+      } catch (err) {
+        console.warn("Could not connect to database, utilizing local storage cash fallback.", err);
+      }
+
+      if (serverState) {
+        setIsUserInputEnabled(serverState.userInputAccessEnabled);
+        if (serverState.msgLines) {
+          setMsgLines(serverState.msgLines);
+        }
+        setCelebrantNameState(serverState.celebrantName);
+        
+        // Match photos against backend approvedIDs
+        const approvedIds = serverState.approvedPhotoIds || [];
+        const approvedPhotos = serverPhotos.filter(p => approvedIds.includes(p.id));
+        const activePhotos = approvedPhotos.length > 0 ? approvedPhotos : serverPhotos;
+        setPhotos(activePhotos);
+
+        if (serverState.isLocked) {
+          setScene('opening');
+        } else {
+          if (activePhotos.length > 0) {
+            setScene('opening');
+          } else {
+            setScene('uploader');
+          }
+        }
+        return;
+      }
+
+      // Step B: Dedicated Config file fallback
       const committedConfig = await fetchCommittedConfig();
       if (committedConfig && committedConfig.isLocked) {
-        // Core block: If marked locked globally, immediately skip uploader with configuration photos!
         setPhotos(committedConfig.photos);
         setIsUserInputEnabled(committedConfig.userInputAccessEnabled !== false);
         if (committedConfig.msgLine1) {
@@ -61,23 +95,17 @@ export default function App() {
         return;
       }
 
-      // Step B: If not blocked globally by config, fetch standard DB & check local custom lock
+      // Step C: If no connection and no config, local storage/IndexedDB fallback
       const storedPhotos = await getPhotos();
       const isLocalLocked = getLocalLockState();
       const approvedIds = getLocalApprovedIds();
       setIsUserInputEnabled(getUserInputAccessEnabled());
 
       if (isLocalLocked) {
-        // Filter out based on moderated approved photos
         const approvedPhotos = storedPhotos.filter(p => approvedIds.includes(p.id));
-        if (approvedPhotos.length > 0) {
-          setPhotos(approvedPhotos);
-        } else {
-          setPhotos(storedPhotos);
-        }
+        setPhotos(approvedPhotos.length > 0 ? approvedPhotos : storedPhotos);
         setScene('opening');
       } else {
-        // Standard unlocked state: Check if photos exist locally
         if (storedPhotos && storedPhotos.length > 0) {
           const approvedPhotos = storedPhotos.filter(p => approvedIds.includes(p.id));
           setPhotos(approvedPhotos.length > 0 ? approvedPhotos : storedPhotos);
@@ -94,19 +122,70 @@ export default function App() {
     }
   };
 
+  // Synchronize from server periodically in the background (8s interval poll) for multiplayer feel
+  useEffect(() => {
+    let active = true;
+    const fetchUpdatesSilently = async () => {
+      try {
+        const serverState = await getServerState();
+        if (!active) return;
+        const serverPhotos = await getServerPhotos();
+        if (!active) return;
+        
+        setIsUserInputEnabled(serverState.userInputAccessEnabled);
+        if (serverState.msgLines) {
+          setMsgLines(serverState.msgLines);
+        }
+        setCelebrantNameState(serverState.celebrantName);
+        
+        const approvedIds = serverState.approvedPhotoIds || [];
+        const approvedPhotos = serverPhotos.filter(p => approvedIds.includes(p.id));
+        setPhotos(approvedPhotos.length > 0 ? approvedPhotos : serverPhotos);
+      } catch (err) {
+        // Fail silently to keep UX stellar
+      }
+    };
+    
+    const interval = setInterval(fetchUpdatesSilently, 8000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, []);
+
   // Load photos from config or IndexedDB on startup
   useEffect(() => {
     loadStoredMemories();
   }, []);
 
-  const handleUploadDone = (uploaded: SavedPhoto[]) => {
+  const handleUploadDone = async (uploaded: SavedPhoto[]) => {
     setPhotos(uploaded);
     setScene('opening');
     playDreamyChord();
+
+    // Push uploaded photos to the shared cloud server db
+    try {
+      for (const p of uploaded) {
+        await uploadServerPhoto(p);
+      }
+      // Re-fetch to stay perfectly synced
+      const serverPhotos = await getServerPhotos();
+      const state = await getServerState();
+      const approvedIds = state.approvedPhotoIds || [];
+      const approvedPhotos = serverPhotos.filter(p => approvedIds.includes(p.id));
+      setPhotos(approvedPhotos.length > 0 ? approvedPhotos : serverPhotos);
+    } catch (e) {
+      console.error("Failed to upload assets to server storage:", e);
+    }
   };
 
   const clearAndResetPhotos = async () => {
     setIsLoading(true);
+    try {
+      await clearServerPhotos();
+    } catch (e) {
+      console.error("Failed to clear server photos:", e);
+    }
     await clearPhotos();
     setPhotos([]);
     setScene('uploader');
@@ -114,26 +193,46 @@ export default function App() {
   };
 
   const handleRefreshData = async () => {
-    // Re-synchronize App state instantly with new local admin controls
-    const storedPhotos = await getPhotos();
-    const isLocalLocked = getLocalLockState();
-    const approvedIds = getLocalApprovedIds();
-    setIsUserInputEnabled(getUserInputAccessEnabled());
-    setMsgLines(getBirthdayMessageLines());
-    setCelebrantNameState(getCelebrantName());
-    
-    // Filter photos based on approval
-    const approvedPhotos = storedPhotos.filter(p => approvedIds.includes(p.id));
-    setPhotos(approvedPhotos.length > 0 ? approvedPhotos : storedPhotos);
+    try {
+      setIsLoading(true);
+      const serverState = await getServerState();
+      const serverPhotos = await getServerPhotos();
+      
+      setIsUserInputEnabled(serverState.userInputAccessEnabled);
+      if (serverState.msgLines) {
+        setMsgLines(serverState.msgLines);
+      }
+      setCelebrantNameState(serverState.celebrantName);
+      
+      const approvedIds = serverState.approvedPhotoIds || [];
+      const approvedPhotos = serverPhotos.filter(p => approvedIds.includes(p.id));
+      const activePhotos = approvedPhotos.length > 0 ? approvedPhotos : serverPhotos;
+      setPhotos(activePhotos);
 
-    if (isLocalLocked) {
-      if (scene === 'uploader') {
-        setScene('opening');
+      if (serverState.isLocked) {
+        if (scene === 'uploader') {
+          setScene('opening');
+        }
+      } else {
+        if (activePhotos.length === 0) {
+          setScene('uploader');
+        }
       }
-    } else {
-      if (storedPhotos.length === 0) {
-        setScene('uploader');
-      }
+    } catch (e) {
+      console.error("Error manual refresh from server:", e);
+      
+      // Fallback
+      const storedPhotos = await getPhotos();
+      const isLocalLocked = getLocalLockState();
+      const approvedIds = getLocalApprovedIds();
+      setIsUserInputEnabled(getUserInputAccessEnabled());
+      setMsgLines(getBirthdayMessageLines());
+      setCelebrantNameState(getCelebrantName());
+      
+      const approvedPhotos = storedPhotos.filter(p => approvedIds.includes(p.id));
+      setPhotos(approvedPhotos.length > 0 ? approvedPhotos : storedPhotos);
+    } finally {
+      setIsLoading(false);
     }
   };
 
